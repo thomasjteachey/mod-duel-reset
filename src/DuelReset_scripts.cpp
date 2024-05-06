@@ -45,36 +45,17 @@ public:
 
     // Called when a duel starts (after 3s countdown)
     void OnDuelStart(Player *player1, Player *player2) override {
-        // Check if Reset is allowed in area or zone
-        if (!sDuelReset->IsAllowedInArea(player1)) {
-            return;
-        }
-
         // Cooldowns reset
         if (sDuelReset->GetResetCooldownsEnabled())
         {
-            sDuelReset->SaveCooldownStateBeforeDuel(player1);
-            sDuelReset->SaveCooldownStateBeforeDuel(player2);
-
-            sDuelReset->ResetSpellCooldowns(player1, true);
-            sDuelReset->ResetSpellCooldowns(player2, true);
+            sDuelReset->ResetSpellCooldowns(player1);
+            sDuelReset->ResetSpellCooldowns(player2);
         }
 
         // Health and mana reset
         if (sDuelReset->GetResetHealthEnabled())
         {
-            sDuelReset->SaveHealthBeforeDuel(player1);
-            if (player1->getPowerType() == POWER_MANA || player1->getClass() == CLASS_DRUID)
-            {
-                sDuelReset->SaveManaBeforeDuel(player1);
-            }
             player1->ResetAllPowers();
-
-            sDuelReset->SaveHealthBeforeDuel(player2);
-            if (player2->getPowerType() == POWER_MANA || player2->getClass() == CLASS_DRUID)
-            {
-                sDuelReset->SaveManaBeforeDuel(player2);
-            }
             player2->ResetAllPowers();
         }
     }
@@ -82,30 +63,15 @@ public:
     // Called when a duel ends
     void OnDuelEnd(Player *winner, Player *loser, DuelCompleteType type) override
     {
-        // Checking zone here is not necessary and would open options or abuse
-        // do not reset anything if DUEL_INTERRUPTED or DUEL_FLED
-        if (type == DUEL_WON) {
-            // Cooldown restore
-            if (sDuelReset->GetResetCooldownsEnabled())
-            {
-                sDuelReset->RestoreCooldownStateAfterDuel(winner);
-                sDuelReset->RestoreCooldownStateAfterDuel(loser);
-            }
-
-            // Health and mana restore
-            if (sDuelReset->GetResetHealthEnabled())
-            {
-                sDuelReset->RestoreHealthAfterDuel(winner);
-                sDuelReset->RestoreHealthAfterDuel(loser);
-
-                // check if player1 class uses mana
-                if (winner->getPowerType() == POWER_MANA || winner->getClass() == CLASS_DRUID)
-                    sDuelReset->RestoreManaAfterDuel(winner);
-
-                // check if player2 class uses mana
-                if (loser->getPowerType() == POWER_MANA || loser->getClass() == CLASS_DRUID)
-                    sDuelReset->RestoreManaAfterDuel(loser);
-            }
+        if (sDuelReset->GetResetHealthEnabled())
+        {
+            winner->ResetAllPowers();
+            loser->ResetAllPowers();
+        }
+        if (sDuelReset->GetResetCooldownsEnabled())
+        {
+            sDuelReset->ResetSpellCooldowns(winner);
+            sDuelReset->ResetSpellCooldowns(loser);
         }
     }
 };

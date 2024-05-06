@@ -26,7 +26,7 @@ DuelReset* DuelReset::instance()
     return &instance;
 }
 
-void DuelReset::ResetSpellCooldowns(Player* player, bool onStartDuel)
+void DuelReset::ResetSpellCooldowns(Player* player)
 {
     uint32 infTime = GameTime::GetGameTimeMS().count() + infinityCooldownDelayCheck;
     SpellCooldowns::iterator itr, next;
@@ -53,11 +53,6 @@ void DuelReset::ResetSpellCooldowns(Player* player, bool onStartDuel)
         // Clear cooldown if < 10min & (passed time > 30sec or onDuelEnd)
         if (remainingCooldown > 0
             && itr->second.end < infTime
-            && totalCooldown < 10 * MINUTE * IN_MILLISECONDS
-            && categoryCooldown < 10 * MINUTE * IN_MILLISECONDS
-            && remainingCooldown < 10 * MINUTE * IN_MILLISECONDS
-            && (onStartDuel ? (totalCooldown - remainingCooldown) > m_cooldownAge * IN_MILLISECONDS : true)
-            && (onStartDuel ? (categoryCooldown - remainingCooldown) > m_cooldownAge * IN_MILLISECONDS : true)
             )
             player->RemoveSpellCooldown(itr->first, true);
     }
@@ -70,102 +65,6 @@ void DuelReset::ResetSpellCooldowns(Player* player, bool onStartDuel)
         // actually clear cooldowns
         pet->m_CreatureSpellCooldowns.clear();
     }
-}
-
-void DuelReset::SaveCooldownStateBeforeDuel(Player* player)
-{
-
-    if(!player)
-        return;
-
-    m_spellCooldownsBeforeDuel[player] = player->GetSpellCooldownMap();
-}
-
-void DuelReset::RestoreCooldownStateAfterDuel(Player* player)
-{
-    PlayersCooldownMap::iterator savedDuelCooldownsMap = m_spellCooldownsBeforeDuel.find(player);
-    if (savedDuelCooldownsMap == m_spellCooldownsBeforeDuel.end())
-        return;
-
-    sDuelReset->ResetSpellCooldowns(player, false);
-
-    SpellCooldowns playerSavedDuelCooldowns = savedDuelCooldownsMap->second;
-    uint32 curMSTime = GameTime::GetGameTimeMS().count();
-    uint32 infTime = curMSTime + infinityCooldownDelayCheck;
-
-    // add all profession CDs created while in duel (if any)
-    for (auto itr = player->GetSpellCooldownMap().begin(); itr != player->GetSpellCooldownMap().end(); ++itr)
-    {
-        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(itr->first);
-
-        if (spellInfo && (spellInfo->RecoveryTime > 10 * MINUTE * IN_MILLISECONDS || spellInfo->CategoryRecoveryTime > 10 * MINUTE * IN_MILLISECONDS))
-        {
-            playerSavedDuelCooldowns[itr->first] = player->GetSpellCooldownMap()[itr->first];
-        }
-    }
-
-    // check for spell with infinity delay active before and during the duel
-    for (auto itr = playerSavedDuelCooldowns.begin(); itr != playerSavedDuelCooldowns.end(); ++itr)
-    {
-        if (itr->second.end < infTime && player->GetSpellCooldownMap()[itr->first].end < infTime)
-            player->AddSpellCooldown(itr->first, itr->second.itemid, (itr->second.end > curMSTime ? itr->second.end - curMSTime : 0), itr->second.needSendToClient, false);
-    }
-
-    // update the client: restore old cooldowns
-    PacketCooldowns cooldowns;
-
-    for (auto itr = player->GetSpellCooldownMap().begin(); itr != player->GetSpellCooldownMap().end(); ++itr)
-    {
-        uint32 cooldown = itr->second.end > curMSTime ? itr->second.end - curMSTime : 0;
-
-        // cooldownDuration must be between 0 and 10 minutes in order to avoid any visual bugs
-        if (cooldown <= 0 || cooldown > 10 * MINUTE * IN_MILLISECONDS || itr->second.end >= infTime)
-            continue;
-
-        cooldowns[itr->first] = cooldown;
-    }
-
-    m_spellCooldownsBeforeDuel.erase(player);
-
-    WorldPacket data;
-    player->BuildCooldownPacket(data, SPELL_COOLDOWN_FLAG_INCLUDE_EVENT_COOLDOWNS, cooldowns);
-    player->SendDirectMessage(&data);
-}
-
-void DuelReset::SaveHealthBeforeDuel(Player* player)
-{
-    if(!player)
-        return;
-
-    m_healthBeforeDuel[player] = player->GetHealth();
-}
-
-void DuelReset::RestoreHealthAfterDuel(Player* player)
-{
-    PlayersHealthMap::iterator savedPlayerHealth = m_healthBeforeDuel.find(player);
-    if (savedPlayerHealth == m_healthBeforeDuel.end())
-        return;
-
-    player->SetHealth(savedPlayerHealth->second);
-    m_healthBeforeDuel.erase(player);
-}
-
-void DuelReset::SaveManaBeforeDuel(Player* player)
-{
-    if(!player)
-        return;
-
-    m_manaBeforeDuel[player] = player->GetPower(POWER_MANA);
-}
-
-void DuelReset::RestoreManaAfterDuel(Player* player)
-{
-    PlayersManaMap::iterator savedPlayerMana = m_manaBeforeDuel.find(player);
-    if (savedPlayerMana == m_manaBeforeDuel.end())
-        return;
-
-    player->SetPower(POWER_MANA, savedPlayerMana->second);
-    m_manaBeforeDuel.erase(player);
 }
 
 void DuelReset::LoadConfig(bool /*reload*/)

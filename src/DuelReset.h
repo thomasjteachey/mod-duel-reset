@@ -16,14 +16,7 @@ public:
     void LoadConfig(bool reload);
     void FillWhitelist(std::string zonesAreas, std::vector<uint32> &whitelist);
 
-    void ResetSpellCooldowns(Player* player, bool onStartDuel);
-    void SaveCooldownStateBeforeDuel(Player* player);
-    void RestoreCooldownStateAfterDuel(Player* player);
-
-    void SaveHealthBeforeDuel(Player* player);
-    void SaveManaBeforeDuel(Player* player);
-    void RestoreHealthAfterDuel(Player* player);
-    void RestoreManaAfterDuel(Player* player);
+    void ResetSpellCooldowns(Player* player);
 
     bool IsAllowedInArea(Player* player) const;
     bool GetResetCooldownsEnabled() const;
